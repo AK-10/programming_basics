@@ -116,4 +116,3 @@ let persons3 = [
 let test1 = otomeza persons1 = [];;
 let test2 = otomeza persons2 = ["あああ"];;
 let test3 = otomeza persons3 = ["あああ"; "ううう"; "おおお"];;
-
