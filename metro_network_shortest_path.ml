@@ -1,6 +1,6 @@
 (* ex8.5 | metro *)
 (* 駅名を表すレコード型 *)
-type station_t = {
+type station_name_t = {
   kanji: string; (* 漢字表記 *)
   kana: string; (* かな表記 *)
   roman: string; (* ローマ字表記 *)
@@ -360,9 +360,9 @@ let global_ekikan_list = [
 ]
 
 (* ex10.10 *)
-(* ローマ字の駅名(string)と駅名リスト(station_t list)を受け取って,その駅の漢字を表記を文字列で返す *)
+(* ローマ字の駅名(string)と駅名リスト(station_name_t list)を受け取って,その駅の漢字を表記を文字列で返す *)
 (* 駅名リストに名前がない場合は空文字を返す *)
-(* roman_to_kanji: string -> station_t list -> string *)
+(* roman_to_kanji: string -> station_name_t list -> string *)
 let rec roman_to_kanji station_roman_name station_list = match station_list with
     [] -> ""
   | {kanji = kanji; kana = kana; roman = r; line = l} :: rest ->
@@ -423,4 +423,149 @@ let test3 = display_distance "myogadani" "ikebukuro"
 let test4 = display_distance "tokyo" "ootemachi"
 	    = "ootemachiという駅は存在しません"
 let test5 = display_distance "tokyo" "otemachi"
-	    = "東京から大手町までは0.6kmです"
+      = "東京から大手町までは0.6kmです";;
+
+(* ex12.1 | metro *)
+(* Dijkstraのための現在の最短距離や経路を保持するデータ型 *)
+type station_t = {
+  name: string; (* 漢字の駅名 *)
+  shortest_distance: float; (* 暫定最短距離 *)
+  route_list: string list; (* 一つ前の駅のリスト *)
+};;
+
+
+(* ex12.2 | metro *)
+(* station_name_tのリストを受け取り, station_tのリストに変換する *)
+(* convert_station_list: station_name_t list -> station_t list *)
+let rec convert_station_list station_names = match station_names with
+    []                                                        -> []
+  | { kanji = kanji; kana = _; roman = _; line = _; } :: rest ->
+    { name = kanji; shortest_distance = infinity; route_list = [] } :: convert_station_list rest;;
+
+let station_names1 = [];;
+let station_names2 = [{kanji="代々木上原"; kana="よよぎうえはら"; roman="yoyogiuehara"; line="千代田線"}];;
+let station_names3 = [
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+];;
+
+let test1 = convert_station_list station_names1 = [];;
+let test2 = convert_station_list station_names2 = [
+  { name = "代々木上原"; shortest_distance = infinity; route_list = [] };
+];;
+let test3 = convert_station_list station_names3 = [
+  { name = "表参道"; shortest_distance = infinity; route_list = [] };
+  { name = "乃木坂"; shortest_distance = infinity; route_list = [] };
+  { name = "赤坂"; shortest_distance = infinity; route_list = [] };
+  { name = "国会議事堂前"; shortest_distance = infinity; route_list = [] };
+];;
+
+(* ex12.3 | metro *)
+(* station_tのリストと始点の駅名(string)を受け取って、始点のみ
+   - shortest_distance = 0
+   - route_listは始点の駅名のみからなるリスト
+   となるstationのリストを返す
+*)
+(* dijkstra_init: station_t list -> string -> station_t list *)
+let rec dijkstra_init stations start = match stations with
+    []                                                       -> []
+  | { name = n; shortest_distance = _; route_list; } as first :: rest ->
+    if n = start then
+      { name = n; shortest_distance = 0.; route_list = [n] } :: dijkstra_init rest start
+    else
+      first :: dijkstra_init rest start;;
+
+let stations1 = [];;
+let stations2 = [
+  { name = "代々木上原"; shortest_distance = infinity; route_list = [] };
+];;
+let stations3 = [
+  { name = "表参道"; shortest_distance = infinity; route_list = [] };
+  { name = "乃木坂"; shortest_distance = infinity; route_list = [] };
+  { name = "赤坂"; shortest_distance = infinity; route_list = [] };
+  { name = "国会議事堂前"; shortest_distance = infinity; route_list = [] };
+];;
+
+let test1 = dijkstra_init stations1 "代々木上原" = [];;
+let test2 = dijkstra_init stations2 "代々木上原" = [
+  { name = "代々木上原"; shortest_distance = 0.; route_list = ["代々木上原"] };
+];;
+
+let test3 = dijkstra_init stations3 "国会議事堂前" = [
+  { name = "表参道"; shortest_distance = infinity; route_list = [] };
+  { name = "乃木坂"; shortest_distance = infinity; route_list = [] };
+  { name = "赤坂"; shortest_distance = infinity; route_list = [] };
+  { name = "国会議事堂前"; shortest_distance = 0.; route_list = ["国会議事堂前"] };
+];;
+
+(* ex12.4 | metro *)
+(* station_name_tのリストと station_tの値sを受け取ってsをkanaで整列した位置に挿入する *)
+(* insert_station_name: station_name_t list -> station_name_t -> station_name_t list *)
+let rec insert_station_name lst station = match lst with
+    [] -> [station]
+  | { kana = k0; } as first :: rest ->
+      match station with
+        { kana = k1 } ->
+          if k0 < k1 then
+            first :: insert_station_name rest station
+          else if k0 = k1 then
+            (* station :: rest *)
+            insert_station_name rest station
+          else
+            station :: first :: rest;;
+let stations1 = [];;
+let stations2 = [
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+];;
+
+let test1 =
+  insert_station_name stations1 {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"} = [{kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"}];;
+let test2 =
+  insert_station_name stations2 {kanji="山"; kana="やま"; roman="omotesandou"; line="千代田線"} = [
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+  {kanji="山"; kana="やま"; roman="omotesandou"; line="千代田線"}
+];;
+
+(* station_name_t型のリストを受け取って, kana順に整列させ, 重複を取り除いたstaion_name_tのリストを返す *)
+(* sort_and_remove_dups: station_name_t list -> station_name_t *)
+let rec sort_and_remove_dups station_names = match station_names with
+    []            -> []
+  | first :: rest -> insert_station_name (sort_and_remove_dups rest) first;;
+
+let stations1 = [];;
+let stations2 = [
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+];;
+let stations3 = [
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="あああ線"};
+];;
+
+
+let test1 = sort_and_remove_dups stations1 = [];;
+let test2 = sort_and_remove_dups stations2 = [
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+];;
+let test3 = sort_and_remove_dups stations3 = [
+  {kanji="赤坂"; kana="あかさか"; roman="akasaka"; line="千代田線"};
+  {kanji="表参道"; kana="おもてさんどう"; roman="omotesandou"; line="千代田線"};
+  {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
+  {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
+];;

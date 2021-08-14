@@ -2,7 +2,7 @@
 (* 昇順に並んだ整数のリストlstと整数nを受け取り, 昇順となる位置に挿入したリストを返す *)
 (* insert: int list -> int -> int list *)
 let rec insert lst n = match lst with
-    [] -> n :: []
+    [] -> [n]
   | first :: rest -> if first < n
                      then first :: insert rest n
                      else n :: first :: rest;;
