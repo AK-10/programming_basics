@@ -569,3 +569,51 @@ let test3 = sort_and_remove_dups stations3 = [
   {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
   {kanji="乃木坂"; kana="のぎざか"; roman="nogizaka"; line="千代田線"};
 ];;
+
+(* ex13.6 | metro *)
+let station1 = {name="池袋"; shortest_distance = infinity; route_list = []}
+let station2 = {name="新大塚"; shortest_distance = 1.2; route_list = ["新大塚"; "茗荷谷"]}
+let station3 = {name="茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]}
+let station4 = {name="後楽園"; shortest_distance = infinity; route_list = []}
+(* 直前に確定した駅p(station_t)と未確定の駅q(station_t)を受け取って,
+   p, qが直接つながっていたらqの最短距離と手前リストを更新、つながっ
+   ていなければもとのqをそのまま返す
+
+ *)
+(* update: station_t -> station_t -> station_t *)
+let update_station p q =
+  match (p, q) with
+    ({ name = p_n; shortest_distance = p_sd; route_list = p_rl },
+    { name = q_n; shortest_distance = q_sd; route_list = q_rl }) ->
+      let p_q_distance = get_distance p_n q_n global_ekikan_list in
+      let temp_distance = p_sd +. p_q_distance in
+        if temp_distance < q_sd then
+          { name = q_n; shortest_distance = temp_distance; route_list = q_n :: p_rl }
+        else
+          q;;
+
+
+let test1 = update_station station3 station1 = station1
+let test2 = update_station station3 station2 = station2
+let test3 = update_station station3 station3 = station3
+let test4 = update_station station3 station4 = {name="後楽園"; shortest_distance = 1.8; route_list = ["後楽園"; "茗荷谷"]}
+let test5 = update_station station2 station1 = {name="池袋"; shortest_distance = 3.0; route_list = ["池袋"; "新大塚"; "茗荷谷"]}
+let test6 = update_station station2 station2 = station2
+let test7 = update_station station2 station3 = station3
+let test8 = update_station station2 station4 = station4
+
+(* ex13.7 | metro *)
+(* 直前に確定した駅p(station_t), 未確定の駅のリストv(staion_t list)を受け取り, 未確定の駅のリストの更新を行う *)
+(* update: station_t -> station_t list -> station_t list *)
+let update p v = List.map (update_station p) v;;
+
+let lst = [station1; station2; station3; station4]
+
+(* テスト *)
+let test1 = update station2 [] = []
+let test2 = update station2 lst = [
+  {name="池袋"; shortest_distance = 3.0; route_list = ["池袋"; "新大塚"; "茗荷谷"]};
+  station2;
+  station3;
+  station4
+]
