@@ -435,12 +435,23 @@ type station_t = {
 
 
 (* ex12.2 | metro *)
+(* ex14.11 | metro *)
 (* station_name_tのリストを受け取り, station_tのリストに変換する *)
-(* convert_station_list: station_name_t list -> station_t list *)
-let rec convert_station_list station_names = match station_names with
+(* 無名関数とList.mapを使って実装する *)
+(* make_station_list: station_name_t list -> station_t list *)
+(*
+  let rec make_station_list station_names = match station_names with
     []                                                        -> []
   | { kanji = kanji; kana = _; roman = _; line = _; } :: rest ->
-    { name = kanji; shortest_distance = infinity; route_list = [] } :: convert_station_list rest;;
+    { name = kanji; shortest_distance = infinity; route_list = [] } :: make_station_list rest;;
+ *)
+let make_station_list =
+  List.map
+    (
+      fun sn ->
+        match sn with { kanji = kanji; kana = _; roman = _; line = _; } ->
+          { name = kanji; shortest_distance = infinity; route_list = [] }
+    );;
 
 let station_names1 = [];;
 let station_names2 = [{kanji="代々木上原"; kana="よよぎうえはら"; roman="yoyogiuehara"; line="千代田線"}];;
@@ -451,11 +462,11 @@ let station_names3 = [
   {kanji="国会議事堂前"; kana="こっかいぎじどうまえ"; roman="kokkaigijidoumae"; line="千代田線"};
 ];;
 
-let test1 = convert_station_list station_names1 = [];;
-let test2 = convert_station_list station_names2 = [
+let test1 = make_station_list station_names1 = [];;
+let test2 = make_station_list station_names2 = [
   { name = "代々木上原"; shortest_distance = infinity; route_list = [] };
 ];;
-let test3 = convert_station_list station_names3 = [
+let test3 = make_station_list station_names3 = [
   { name = "表参道"; shortest_distance = infinity; route_list = [] };
   { name = "乃木坂"; shortest_distance = infinity; route_list = [] };
   { name = "赤坂"; shortest_distance = infinity; route_list = [] };
@@ -468,14 +479,29 @@ let test3 = convert_station_list station_names3 = [
    - route_listは始点の駅名のみからなるリスト
    となるstationのリストを返す
 *)
+(* ex14.11 | metro *)
+(* 無名関数とList.mapを使って実装する *)
 (* dijkstra_init: station_t list -> string -> station_t list *)
-let rec dijkstra_init stations start = match stations with
+(*
+  let rec dijkstra_init stations start = match stations with
     []                                                       -> []
   | { name = n; shortest_distance = _; route_list; } as first :: rest ->
     if n = start then
       { name = n; shortest_distance = 0.; route_list = [n] } :: dijkstra_init rest start
     else
       first :: dijkstra_init rest start;;
+ *)
+let dijkstra_init stations start =
+  List.map
+    (
+      fun x -> match x with
+        { name = n; shortest_distance = _; route_list = _; } ->
+          if start = n then
+            { name = n; shortest_distance = 0.; route_list = [n] }
+          else
+            x
+    )
+    stations
 
 let stations1 = [];;
 let stations2 = [
@@ -581,6 +607,8 @@ let station4 = {name="後楽園"; shortest_distance = infinity; route_list = []}
 
  *)
 (* update: station_t -> station_t -> station_t *)
+
+(*
 let update_station p q =
   match (p, q) with
     ({ name = p_n; shortest_distance = p_sd; route_list = p_rl },
@@ -591,8 +619,6 @@ let update_station p q =
           { name = q_n; shortest_distance = temp_distance; route_list = q_n :: p_rl }
         else
           q;;
-
-
 let test1 = update_station station3 station1 = station1
 let test2 = update_station station3 station2 = station2
 let test3 = update_station station3 station3 = station3
@@ -601,11 +627,29 @@ let test5 = update_station station2 station1 = {name="池袋"; shortest_distance
 let test6 = update_station station2 station2 = station2
 let test7 = update_station station2 station3 = station3
 let test8 = update_station station2 station4 = station4
+ *)
 
 (* ex13.7 | metro *)
 (* 直前に確定した駅p(station_t), 未確定の駅のリストv(staion_t list)を受け取り, 未確定の駅のリストの更新を行う *)
+(* ex14.7 | metro *)
+(* update_stationを局所関数を使うように実装 *)
+(* ex14.13 | metro *)
+(* 局所関数を無名関数で実装 *)
 (* update: station_t -> station_t list -> station_t list *)
-let update p v = List.map (update_station p) v;;
+let update p v =
+  List.map
+   (
+      fun q -> match (p, q) with
+        ({ name = p_n; shortest_distance = p_sd; route_list = p_rl },
+        { name = q_n; shortest_distance = q_sd; route_list = q_rl }) ->
+          let p_q_distance = get_distance p_n q_n global_ekikan_list in
+          let temp_distance = p_sd +. p_q_distance in
+            if temp_distance < q_sd then
+              { name = q_n; shortest_distance = temp_distance; route_list = q_n :: p_rl }
+            else
+              q
+   )
+   v;;
 
 let lst = [station1; station2; station3; station4]
 
@@ -616,4 +660,44 @@ let test2 = update station2 lst = [
   station2;
   station3;
   station4
+];;
+
+(* ex14.12 | metro *)
+let ekimei_list = [
+  {kanji="池袋"; kana="いけぶくろ"; roman="ikebukuro"; line="丸ノ内線"};
+  {kanji="新大塚"; kana="しんおおつか"; roman="shinotsuka"; line="丸ノ内線"};
+  {kanji="茗荷谷"; kana="みょうがだに"; roman="myogadani"; line="丸ノ内線"};
+  {kanji="後楽園"; kana="こうらくえん"; roman="korakuen"; line="丸ノ内線"};
+  {kanji="本郷三丁目"; kana="ほんごうさんちょうめ"; roman="hongosanchome"; line="丸ノ内線"};
+  {kanji="御茶ノ水"; kana="おちゃのみず"; roman="ochanomizu"; line="丸ノ内線"}
 ]
+(*
+   ex12.2 ex12.3で実装したmake_station_list, dijkstra_initは同時にできる
+   station_name_tのリストと始点の漢字の駅名(string)を受け取って, station_tのリストを返す
+   始点のみ距離0, route_listに自分自身を含める
+   14.11で定義した無名関数との関係は合成関数である
+ *)
+(* make_init_station_list: station_name_t list -> string -> station_t list *)
+let make_init_station_list lst start =
+  List.map
+    (
+      fun sn -> match sn with
+        { kanji = k; kana = _; roman = _; line = _ } ->
+          if k = start then
+            { name = k; shortest_distance = 0.; route_list = [k] }
+          else
+            { name = k; shortest_distance = infinity; route_list = [] }
+    )
+    lst;;
+
+let test1 = make_init_station_list [] "茗荷谷" = []
+let test2 = make_init_station_list ekimei_list "茗荷谷" = [
+  {name="池袋"; shortest_distance = infinity; route_list = []};
+  {name="新大塚"; shortest_distance = infinity; route_list = []};
+  {name="茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]};
+  {name="後楽園"; shortest_distance = infinity; route_list = []};
+  {name="本郷三丁目"; shortest_distance = infinity; route_list = []};
+  {name="御茶ノ水"; shortest_distance = infinity; route_list = []}
+];;
+(* ex14.13 | metro *)
+
