@@ -638,7 +638,7 @@ let test8 = update_station station2 station4 = station4
 (* update: station_t -> station_t list -> station_t list *)
 let update p v =
   List.map
-   (
+    (
       fun q -> match (p, q) with
         ({ name = p_n; shortest_distance = p_sd; route_list = p_rl },
         { name = q_n; shortest_distance = q_sd; route_list = q_rl }) ->
@@ -648,8 +648,8 @@ let update p v =
               { name = q_n; shortest_distance = temp_distance; route_list = q_n :: p_rl }
             else
               q
-   )
-   v;;
+    )
+    v;;
 
 let lst = [station1; station2; station3; station4]
 
@@ -699,5 +699,60 @@ let test2 = make_init_station_list ekimei_list "茗荷谷" = [
   {name="本郷三丁目"; shortest_distance = infinity; route_list = []};
   {name="御茶ノ水"; shortest_distance = infinity; route_list = []}
 ];;
-(* ex14.13 | metro *)
 
+(* ex15.4 *)
+(* station_tのリストlstを受け取り 「最短距離最小の駅」と「最短距離最小の駅以外のリスト」のペアを返す *)
+(* ex15.5 *)
+(* fold_rightを用いて実装 *)
+(* separate_shotests: station_t list -> station_t * station_t list *)
+(*
+let rec separate_shortest lst =
+  let default = { name =""; shortest_distance = infinity; route_list = [] } in
+    match lst with
+        [] -> (default, []) (* ここには到達しないはずだが、網羅性のため定義 *)
+      | first :: [] -> (first, [])
+      | { shortest_distance = fsd } as first :: rest ->
+          let ({ shortest_distance = rsd } as rest_shortest, others) = separate_shortest rest in
+            if fsd < rsd then
+              (first, rest_shortest :: others)
+            else
+              (rest_shortest, first :: others)
+ *)
+
+(* ex15.5 *)
+(* fold_rightを用いてseparate_shortestを実装 *)
+(* separate_shotests: station_t list -> station_t * station_t list *)
+let separate_shortest lst =
+  match lst with
+      [] -> ({ name =""; shortest_distance = infinity; route_list = [] }, [])
+    | first :: [] -> (first, [])
+    | first :: rest ->
+      let get_shortest x y = match (x, y) with
+        ({ shortest_distance = xsd } as xst, ({ shortest_distance = ysd } as yst, ysts)) ->
+          if xsd < ysd then
+            (xst, yst :: ysts)
+          else
+            (yst, xst :: ysts)
+      in
+        List.fold_right get_shortest rest (first, [])
+
+let stations = [
+  {name="池袋"; shortest_distance = infinity; route_list = []};
+  {name="新大塚"; shortest_distance = infinity; route_list = []};
+  {name="茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]};
+  {name="後楽園"; shortest_distance = 1.2; route_list = ["茗荷谷"; "本郷三丁目"]};
+  {name="本郷三丁目"; shortest_distance = infinity; route_list = []};
+  {name="御茶ノ水"; shortest_distance = infinity; route_list = []}
+];;
+
+let test1 = separate_shortest [] = ({ name =""; shortest_distance = infinity; route_list = [] }, []);;
+let test2 = separate_shortest stations = (
+  {name="茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]},
+  [
+    {name="新大塚"; shortest_distance = infinity; route_list = []};
+    {name="後楽園"; shortest_distance = 1.2; route_list = ["茗荷谷"; "本郷三丁目"]};
+    {name="池袋"; shortest_distance = infinity; route_list = []};
+    {name="本郷三丁目"; shortest_distance = infinity; route_list = []};
+    {name="御茶ノ水"; shortest_distance = infinity; route_list = []};
+  ]
+);;
