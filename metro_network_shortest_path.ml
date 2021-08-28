@@ -635,14 +635,16 @@ let test8 = update_station station2 station4 = station4
 (* update_stationを局所関数を使うように実装 *)
 (* ex14.13 | metro *)
 (* 局所関数を無名関数で実装 *)
-(* update: station_t -> station_t list -> station_t list *)
-let update p v =
+(* ex16.3 | metro *)
+(* 駅名リストを引数に取るようにし、get_distanceでそれを使うようにする *)
+(* update: station_t -> station_t list -> edge_t list -> station_t list *)
+let update p v edge_list =
   List.map
     (
       fun q -> match (p, q) with
         ({ name = p_n; shortest_distance = p_sd; route_list = p_rl },
         { name = q_n; shortest_distance = q_sd; route_list = q_rl }) ->
-          let p_q_distance = get_distance p_n q_n global_ekikan_list in
+          let p_q_distance = get_distance p_n q_n edge_list in
           let temp_distance = p_sd +. p_q_distance in
             if temp_distance < q_sd then
               { name = q_n; shortest_distance = temp_distance; route_list = q_n :: p_rl }
@@ -654,8 +656,8 @@ let update p v =
 let lst = [station1; station2; station3; station4]
 
 (* テスト *)
-let test1 = update station2 [] = []
-let test2 = update station2 lst = [
+let test1 = update station2 [] [] = []
+let test2 = update station2 lst global_ekikan_list = [
   {name="池袋"; shortest_distance = 3.0; route_list = ["池袋"; "新大塚"; "茗荷谷"]};
   station2;
   station3;
@@ -756,3 +758,65 @@ let test2 = separate_shortest stations = (
     {name="御茶ノ水"; shortest_distance = infinity; route_list = []};
   ]
 );;
+
+(* ex16.4 | metro *)
+(*
+   station_t list型の未確定の駅のリストとedge_t list型の駅間のリストを受け取って、
+   ダイクストラのアルゴリズムに従って各駅について最短距離と最短経路が正しく入ったリスト(station_t list)を返す
+   未確定駅リストの中には始点となるものに対してはshortest_distance = 0. となっている駅が存在する(make_init_station_listがすでに計算されている想定)
+ *)
+(* dijkstra_main: station_t list -> edge_t list -> station_t list *)
+(* unsettlesは再帰のたびに一つずつ小さくなるので停止する *)
+let rec dijkstra_main stations edges = match stations with
+        [] -> []
+      | lst ->
+        let (decided, unsettles) = separate_shortest lst in
+        let updated = update decided unsettles edges in
+          decided :: dijkstra_main updated edges;;
+
+let eki1 = {name="池袋"; shortest_distance = infinity; route_list = []}
+let eki2 = {name="新大塚"; shortest_distance = 1.2; route_list = ["新大塚"; "茗荷谷"]}
+let eki3 = {name="茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]}
+let eki4 = {name="後楽園"; shortest_distance = infinity; route_list = []}
+
+(* 駅リストの例 *)
+let lst = [eki1; eki2; eki3; eki4]
+
+(* テスト *)
+let test1 = dijkstra_main [] global_ekikan_list = []
+let test2 = dijkstra_main lst global_ekikan_list =
+  [{name = "茗荷谷"; shortest_distance = 0.; route_list = ["茗荷谷"]};
+   {name = "新大塚"; shortest_distance = 1.2; route_list = ["新大塚"; "茗荷谷"]};
+   {name = "後楽園"; shortest_distance = 1.8; route_list = ["後楽園"; "茗荷谷"]};
+   {name = "池袋"; shortest_distance = 3.; route_list = ["池袋"; "新大塚"; "茗荷谷"]}]
+
+(* ex16.5 | metro *)
+(* 条件となる関数pとstation_t listを受け取って該当の駅を返す *)
+(* find_station: staiton_t -> 'station list -> station_t *)
+let rec find_station name lst = match lst with
+    [] -> { name = ""; shortest_distance = infinity; route_list = [] }
+  | { name = n; shortest_distance = _; route_list = _ } as first :: rest ->
+      if n = name then
+        first
+      else
+        find_station name rest;;
+
+(* dijkstra: string -> string -> station_t *)
+let dijkstra start goal =
+  let start_kanji = roman_to_kanji start global_ekimei_list in
+  let goal_kanji = roman_to_kanji goal global_ekimei_list in
+  let stations = make_init_station_list global_ekimei_list start_kanji in
+  let result = dijkstra_main stations global_ekikan_list in
+    find_station goal_kanji result;;
+
+let test1 = dijkstra "shibuya" "gokokuji" =
+  {name = "護国寺"; shortest_distance = 9.8;
+   route_list =
+     ["護国寺"; "江戸川橋"; "飯田橋"; "市ヶ谷"; "麹町"; "永田町";
+      "青山一丁目"; "表参道"; "渋谷"]}
+let test2 = dijkstra "myogadani" "meguro" =
+  {name = "目黒"; shortest_distance = 12.7000000000000028;
+   route_list =
+     ["目黒"; "白金台"; "白金高輪"; "麻布十番"; "六本木一丁目"; "溜池山王";
+      "永田町"; "麹町"; "市ヶ谷"; "飯田橋"; "後楽園"; "茗荷谷"]};;
+
