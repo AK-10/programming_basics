@@ -392,6 +392,7 @@ let test3 = get_distance "代々木上原" "代々木公園" global_ekikan_list 
 let test4 = get_distance "代々木公園" "代々木上原" global_ekikan_list = 1.0;;
 let test5 = get_distance "営団成増" "和光市" global_ekikan_list = 2.1;;
 
+
 (* ex10.12 *)
 (* ローマ字の２つの駅名(string)を受けとって直接つながっている場合は
    「AからBまでは○kmです」という文字列を返し、つながっていない場合は
@@ -820,3 +821,111 @@ let test2 = dijkstra "myogadani" "meguro" =
      ["目黒"; "白金台"; "白金高輪"; "麻布十番"; "六本木一丁目"; "溜池山王";
       "永田町"; "麹町"; "市ヶ谷"; "飯田橋"; "後楽園"; "茗荷谷"]};;
 
+
+(* ex17.10 | metro *)
+(*
+  - 駅名
+  - その駅に直接つながっている駅名とその駅までの距離の組のリスト
+  を持つedge_tree_t
+ *)
+
+type edge_tree_t = Empty
+                 | Node of edge_tree_t * string * (string * float) list * edge_tree_t (* 駅名 * (直接つながっている駅の駅名 * 距離) *)
+
+(* ex17.11 | metro *)
+(*
+  「駅名」と「駅名と距離の組のリスト」を受け取って、その駅までの距離を返す
+  駅がリストから見つからない場合infinityを返す
+ *)
+(* assoc: string -> (string * float) list -> float *)
+let rec assoc station_name name_distance_pairs = match name_distance_pairs with
+  | [] -> infinity
+  | (a, b) :: rest ->
+      if a = station_name then
+        b
+      else
+        assoc station_name rest
+
+let pairs1 = [];;
+let pairs2 = [("a", 1.9); ("b", 2.0)];;
+
+let test1 = assoc "a" pairs1 = infinity;;
+let test2 = assoc "a" pairs2 = 1.9;;
+
+(* ex17.11 | metro *)
+(*
+  edge_tree_tとedge_tを受け取ってedge_tree_tにedge_tを挿入する
+  一旦は右に追加していく
+ *)
+
+(* insert1: edge_tree_t -> string -> string -> float -> edge_tree_t *)
+let rec insert1 tree src dest distance = match tree with
+  | Empty -> Node (Empty, src, [(dest, distance)], Empty)
+  | Node (lt, st_name, lst, rt) ->
+      if src < st_name then
+        Node (insert1 lt src dest distance, st_name, lst, rt)
+      else if st_name < src then
+        Node (lt, st_name, lst, insert1 rt src dest distance)
+      else
+        Node (lt, st_name, (dest, distance) :: lst, rt)
+
+(* ex17.12 | metro *)
+(* insert_edge: edge_tree_t -> edge_t -> edge_tree_t *)
+let insert_edge tree edge = match edge with
+  { src = s; dest = d; distance = ds } -> insert1 (insert1 tree d s ds) s d ds;;
+
+let ekikan1 =
+  {src="池袋"; dest="新大塚"; via="丸ノ内線"; distance=1.8; required_time=3}
+let ekikan2 =
+  {src="新大塚"; dest="茗荷谷"; via="丸ノ内線"; distance=1.2; required_time=2}
+let ekikan3 =
+  {src="茗荷谷"; dest="後楽園"; via="丸ノ内線"; distance=1.8; required_time=2}
+
+(* test *)
+let tree1 = insert_edge Empty ekikan1
+let test1 = tree1 =
+  Node (Empty, "新大塚", [("池袋", 1.8)],
+	Node (Empty, "池袋", [("新大塚", 1.8)], Empty))
+let tree2 = insert_edge tree1 ekikan2
+let test2 = tree2 =
+  Node (Empty, "新大塚", [("茗荷谷", 1.2); ("池袋", 1.8)],
+	Node (Empty, "池袋", [("新大塚", 1.8)],
+	      Node (Empty, "茗荷谷", [("新大塚", 1.2)], Empty)))
+let tree3 = insert_edge tree2 ekikan3
+let test3 = tree3 =
+  Node (Node (Empty, "後楽園", [("茗荷谷", 1.8)], Empty),
+	"新大塚", [("茗荷谷", 1.2); ("池袋", 1.8)],
+        Node (Empty,
+	      "池袋", [("新大塚", 1.8)],
+	      Node (Empty,
+		    "茗荷谷", [("後楽園", 1.8); ("新大塚", 1.2)],
+		    Empty)))
+
+(* ex17.13 | metro *)
+(* inserts_edge: edge_tree_t -> edge_t list -> edge_tree_t *)
+let inserts_edge tree edges = List.fold_right (fun edge tree -> insert_edge tree edge) edges tree
+
+let test1 = inserts_edge Empty [ekikan1; ekikan2; ekikan3] =
+  Node (Empty, "後楽園", [("茗荷谷", 1.8)],
+   Node
+    (Node (Empty, "新大塚", [("池袋", 1.8); ("茗荷谷", 1.2)],
+      Node (Empty, "池袋", [("新大塚", 1.8)], Empty)),
+    "茗荷谷", [("新大塚", 1.2); ("後楽園", 1.8)], Empty));;
+
+(* ex17.14 *)
+(* 木を使ったget_distanceに変更 *)
+(* get_distance_by_tree: string -> string -> edge_tree_t -> float *)
+let rec get_distance_by_tree station_kanji1 station_kanji2 edge_tree = match edge_tree with
+  | Empty -> infinity
+  | Node (lt, name, lst, rt) ->
+    if name = station_kanji1 then
+      assoc station_kanji2 lst
+    else if station_kanji1 < name then
+      get_distance_by_tree station_kanji1 station_kanji2 lt
+    else
+      get_distance_by_tree station_kanji1 station_kanji2 rt
+
+let global_ekikan_tree = inserts_edge Empty global_ekikan_list
+let test1 = get_distance_by_tree "茗荷谷" "新大塚" global_ekikan_tree = 1.2
+let test2 = get_distance_by_tree "茗荷谷" "池袋" global_ekikan_tree = infinity
+let test3 = get_distance_by_tree "東京" "大手町" global_ekikan_tree = 0.6
